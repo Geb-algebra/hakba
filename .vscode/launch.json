@@ -1,0 +1,1 @@
+{"version":"0.2.0","configurations":[{"name":"Run HAKBa","type":"extensionHost","request":"launch","args":["--extensionDevelopmentPath=${workspaceFolder}/extension","/Users/gebalgebra/Documents/dev/hakba/test"],"outFiles":["${workspaceFolder}/extension/out/**/*.js"]}]}

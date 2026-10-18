@@ -1,0 +1,8 @@
+src/**
+test/**
+.vscode-test/**
+tsconfig.json
+out/**/*.map
+out/test/**
+*.vsix
+package-lock.json

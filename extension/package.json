@@ -1,0 +1,101 @@
+{
+  "name": "hakba",
+  "displayName": "HAKBa",
+  "description": "Space-based human-approved knowledge management with repository-relative wiki links.",
+  "version": "0.1.0",
+  "publisher": "hakba-local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "knowledge",
+    "markdown",
+    "wiki",
+    "hakba"
+  ],
+  "icon": "media/icon.png",
+  "main": "./out/src/extension.js",
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": false
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "check": "tsc -p . --noEmit",
+    "test": "npm run compile && node --test out/test/core.test.js",
+    "test:integration": "npm run compile && node test/run-integration.cjs",
+    "package": "npm run test && vsce package --allow-missing-repository"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "hakba.initialize",
+        "title": "HAKBa: Initialize Repository"
+      },
+      {
+        "command": "hakba.createSpace",
+        "title": "HAKBa: Create Child Space"
+      },
+      {
+        "command": "hakba.createFile",
+        "title": "HAKBa: Create Classified Markdown"
+      },
+      {
+        "command": "hakba.approve",
+        "title": "HAKBa: Approve Current Knowledge"
+      },
+      {
+        "command": "hakba.refreshDates",
+        "title": "HAKBa: Refresh Git Dates"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "hakba.initialize",
+          "when": "resourceScheme == file",
+          "group": "hakba"
+        },
+        {
+          "command": "hakba.createSpace",
+          "when": "resourceScheme == file",
+          "group": "hakba"
+        },
+        {
+          "command": "hakba.createFile",
+          "when": "resourceScheme == file",
+          "group": "hakba"
+        },
+        {
+          "command": "hakba.approve",
+          "when": "resourceExtname == .md",
+          "group": "hakba"
+        }
+      ]
+    }
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.2.0",
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.95.0",
+    "@vscode/test-electron": "^2.5.0",
+    "@vscode/vsce": "^4.0.0",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "markdown-it": "^14.3.3",
+    "yaml": "^2.8.0"
+  },
+  "extensionKind": [
+    "workspace"
+  ]
+}

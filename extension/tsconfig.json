@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2022","module":"commonjs","strict":true,"esModuleInterop":true,"outDir":"out","rootDir":".","sourceMap":true},"include":["src/**/*.ts","test/**/*.ts"]}

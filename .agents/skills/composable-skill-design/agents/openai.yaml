@@ -1,0 +1,4 @@
+interface:
+  display_name: "Composable Skill Design"
+  short_description: "Process と Context を分離して Skill の合成可能性を保つ"
+  default_prompt: "Use $composable-skill-design with $skill-creator to create a composable Agent Skill."
