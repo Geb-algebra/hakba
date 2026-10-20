@@ -25,6 +25,8 @@ Each Space has an `_index.md` and classifies information into `_contexts/`, `_so
 
 Links use paths relative to the Git root, including extensions. Existing files of any format open in VS Code; only missing `.md` files can be created. Trigger completion with Ctrl+Space.
 
+Place new Knowledge in the highest ancestor Space where its content is valid and useful, considering parents, grandparents, and all further ancestors. Use the root for generally useful knowledge and the current Space for knowledge valid only under its specific premises. Create Classified Markdown offers the current and ancestor Spaces, highest first. For link-based creation, specify that Space in the link target. The extension preserves the exact path and does not judge usefulness automatically.
+
 New Knowledge starts with `draft: true`. After reviewing it, use `HAKBa: Approve Current Knowledge`. Manual edits preserve approval status. Use the toolkit’s HAKBa agent skill to mark AI edits as drafts.
 
 ## Requirements and limits

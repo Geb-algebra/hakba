@@ -13,7 +13,7 @@ npm run check
 npm test
 npm run test:integration
 npm run package
-code --install-extension hakba-0.1.1.vsix
+code --install-extension hakba-0.1.2.vsix
 ```
 
 Linux の画面がない環境では `xvfb-run -a npm run test:integration` を使います。Integration テストは初回に VSCode をダウンロードします。既存のテスト用デスクトップ VSCode は `HAKBA_VSCODE_EXECUTABLE` で指定できます。
@@ -49,6 +49,8 @@ _outputs/
 ```
 
 Knowledge は Markdown とし、新規作成時は `draft: true` です。分類ディレクトリ内のサブディレクトリも同じ分類です。Source と Output は通常の VSCode 操作で任意形式のファイルを配置できます。重複を許容し、鮮度を区別するためファイル名を取得・作成時のローカル日付 `yymmdd_` で始めます。分類別作成コマンドは Source・Output のファイル名に日付を自動付与します（サブディレクトリ対応、付与済みなら維持）。Context・Knowledge のファイル名には付けません。リンクからの作成は指定パスを維持するため、日付を含めて指定してください。
+
+Knowledge の新規作成先は、その内容が有効かつ有用な最も祖先側の Space です。親・祖父母・さらに上も対象とし、全体に有用ならルート、作業固有なら自身に配置します。分類別作成コマンドでは Knowledge の配置先を自身・祖先から選びます。リンクから作成する場合は、その Space のパスを指定してください。
 
 ### リンク
 

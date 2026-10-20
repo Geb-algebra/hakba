@@ -122,9 +122,19 @@ export function activate(context: vscode.ExtensionContext): void {
   });
   command('hakba.createFile', async (uri?: vscode.Uri) => {
     const {root, selected} = await location(uri);
-    const space = await core.nearestSpace(root, selected);
+    let space = await core.nearestSpace(root, selected);
     const kind = await vscode.window.showQuickPick(core.categories, {placeHolder:'Information category'});
     if (!kind) return;
+    if (kind === '_knowledges') {
+      const spaces = await core.ancestorSpaces(root, space);
+      const destination = await vscode.window.showQuickPick(spaces.map(dir => ({
+        label: path.relative(root, dir).split(path.sep).join('/') || '/',
+        description: dir === space ? 'Current Space' : 'Ancestor Space',
+        dir
+      })), {placeHolder:'Choose the highest ancestor Space where this Knowledge is valid and useful'});
+      if (!destination) return;
+      space = destination.dir;
+    }
     const name = await vscode.window.showInputBox({prompt:`File name (subdirectories allowed; .md is optional${kind === '_sources' || kind === '_outputs' ? '; yymmdd_ prefix added automatically' : ''})`, validateInput:value => !value.trim() || value.split('/').some(p => !p || p === '.' || p === '..') || /[\\:*?"<>|\x00-\x1f]/.test(value) ? 'Enter a valid relative file name.' : undefined});
     if (!name) return;
     const filename = core.classifiedFilename(name, kind as core.Category);

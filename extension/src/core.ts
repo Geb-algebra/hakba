@@ -66,6 +66,18 @@ export async function nearestSpace(root: string, start: string): Promise<string>
   }
   throw new Error('No Space found. Initialize the repository first.');
 }
+// Current and ancestor Spaces, highest first; ordinary directories are skipped.
+export async function ancestorSpaces(root: string, start: string): Promise<string[]> {
+  const spaces: string[] = [];
+  let dir = await nearestSpace(root, start);
+  while (inside(root, dir)) {
+    try { if ((await fs.stat(path.join(dir, '_index.md'))).isFile()) spaces.push(dir); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+    if (dir === root) break;
+    dir = path.dirname(dir);
+  }
+  return spaces.reverse();
+}
 export function datePrefix(date = new Date()): string {
   return `${String(date.getFullYear()).slice(-2)}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}_`;
 }

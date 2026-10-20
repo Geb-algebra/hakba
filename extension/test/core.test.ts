@@ -97,3 +97,13 @@ test('shared link prefixes respect directory boundaries and alias ranges', () =>
   const link = core.links(text)[0];
   assert.equal(text.slice(link.start+2,link.start+2+core.sharedLinkPrefix(root,origin,link.target)),'project/');
 });
+
+test('ancestor choices include distant Spaces, skip ordinary directories and exclude siblings', async () => fixture(async root => {
+  await core.initializeSpace(root);
+  const parent = path.join(root,'company');
+  const grandchild = path.join(parent,'ordinary','project');
+  const current = path.join(grandchild,'design');
+  for (const dir of [parent,grandchild,current,path.join(root,'sibling')]) await core.initializeSpace(dir);
+  assert.deepEqual(await core.ancestorSpaces(root,path.join(current,'_knowledges')), [root,parent,grandchild,current]);
+  assert.deepEqual(await core.ancestorSpaces(root,root), [root]);
+}));
