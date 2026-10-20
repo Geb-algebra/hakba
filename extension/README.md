@@ -27,6 +27,8 @@ Links use paths relative to the Git root, including extensions. Existing files o
 
 Place new Knowledge in the highest ancestor Space where its content is valid and useful, considering parents, grandparents, and all further ancestors. Use the root for generally useful knowledge and the current Space for knowledge valid only under its specific premises. Create Classified Markdown offers the current and ancestor Spaces, highest first. For link-based creation, specify that Space in the link target. The extension preserves the exact path and does not judge usefulness automatically.
 
+The active file identifies the working Space, but does not determine where Knowledge belongs: always reconsider ancestor placement. When general knowledge and case-specific material coexist, split out coherent portions that can be generalized and have reusable value, placing the general Knowledge in the highest valid and useful ancestor Space. Line-by-line fragmentation is not required. The extension provides placement guidance; content assessment and splitting remain with the author or agent skill.
+
 New Knowledge starts with `draft: true`. After reviewing it, use `HAKBa: Approve Current Knowledge`. Manual edits preserve approval status. Use the toolkit’s HAKBa agent skill to mark AI edits as drafts.
 
 ## Requirements and limits
