@@ -5,6 +5,7 @@ A VS Code extension for Human-AI Knowledge Bases. Manage human-approved Knowledg
 ## Features
 
 - Repository-relative wiki links: `[[path/to/file.md]]` and `[[path|label]]`
+- Shared directory prefixes in wiki links use the theme’s CodeLens color, emphasizing the path below the nearest common parent (aliases stay unchanged)
 - File path completion that respects Git ignore rules
 - Command/Ctrl+click to open Markdown, CSV, images, and other existing files
 - Missing wiki links shown in the theme’s warning color with a warning underline; updates when files are created or deleted
@@ -20,7 +21,7 @@ A VS Code extension for Human-AI Knowledge Bases. Manage human-approved Knowledg
 3. Run `HAKBa: Create Child Space` or `HAKBa: Create Classified Markdown`.
 4. Enter `[[_knowledges/example.md]]` in Markdown and Command/Ctrl+click to create it.
 
-Each Space has an `_index.md` and classifies information into `_contexts/`, `_sources/`, `_knowledges/`, and `_outputs/`. Child Space names receive a local-date `yymmdd_` prefix.
+Each Space has an `_index.md` and classifies information into `_contexts/`, `_sources/`, `_knowledges/`, and `_outputs/`. Child Space names receive a local-date `yymmdd_` prefix. Source and Output allow duplicate information and use acquisition/creation dates in `yymmdd_name.ext` filenames. Create Classified Markdown adds the prefix to the basename, including within subdirectories, unless already present. Context and Knowledge filenames remain undated. Link-based creation preserves the exact target path; include the date yourself for Source and Output.
 
 Links use paths relative to the Git root, including extensions. Existing files of any format open in VS Code; only missing `.md` files can be created. Trigger completion with Ctrl+Space.
 

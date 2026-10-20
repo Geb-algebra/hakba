@@ -10,6 +10,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const missingLinkStyle = vscode.window.createTextEditorDecorationType({
     color: new vscode.ThemeColor('editorWarning.foreground')
   });
+  const sharedLinkStyle = vscode.window.createTextEditorDecorationType({color: new vscode.ThemeColor('editorCodeLens.foreground')});
   let linkRevision = 0;
   async function refreshLinks(): Promise<void> {
     const revision = ++linkRevision;
@@ -18,11 +19,14 @@ export function activate(context: vscode.ExtensionContext): void {
       if (document.languageId !== 'markdown' || document.uri.scheme !== 'file') return;
       const version = document.version;
       const missing: vscode.Diagnostic[] = [];
+      const shared: vscode.Range[] = [];
       try {
         const root = await core.repository(document.uri.fsPath);
         await Promise.all(core.links(document.getText()).map(async link => {
           try {
             const file = await core.resolveTarget(root, link.target);
+            const length = core.sharedLinkPrefix(root, document.uri.fsPath, link.target);
+            if (length) shared.push(new vscode.Range(document.positionAt(link.start + 2), document.positionAt(link.start + 2 + length)));
             await fs.stat(file);
           } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return;
@@ -36,10 +40,11 @@ export function activate(context: vscode.ExtensionContext): void {
       if (revision !== linkRevision || document.version !== version || document.isClosed) return;
       diagnostics.set(document.uri, missing);
       editor.setDecorations(missingLinkStyle, missing.map(item => item.range));
+      editor.setDecorations(sharedLinkStyle, shared);
     }));
   }
   const linkWatcher = vscode.workspace.createFileSystemWatcher('**/*');
-  context.subscriptions.push(diagnostics, missingLinkStyle, linkWatcher,
+  context.subscriptions.push(diagnostics, missingLinkStyle, sharedLinkStyle, linkWatcher,
     linkWatcher.onDidCreate(() => {void refreshLinks();}),
     linkWatcher.onDidDelete(() => {void refreshLinks();}),
     vscode.window.onDidChangeVisibleTextEditors(() => {void refreshLinks();}),
@@ -120,9 +125,9 @@ export function activate(context: vscode.ExtensionContext): void {
     const space = await core.nearestSpace(root, selected);
     const kind = await vscode.window.showQuickPick(core.categories, {placeHolder:'Information category'});
     if (!kind) return;
-    const name = await vscode.window.showInputBox({prompt:'File name (subdirectories allowed; .md is optional)', validateInput:value => !value.trim() || value.split('/').some(p => !p || p === '.' || p === '..') || /[\\:*?"<>|\x00-\x1f]/.test(value) ? 'Enter a valid relative file name.' : undefined});
+    const name = await vscode.window.showInputBox({prompt:`File name (subdirectories allowed; .md is optional${kind === '_sources' || kind === '_outputs' ? '; yymmdd_ prefix added automatically' : ''})`, validateInput:value => !value.trim() || value.split('/').some(p => !p || p === '.' || p === '..') || /[\\:*?"<>|\x00-\x1f]/.test(value) ? 'Enter a valid relative file name.' : undefined});
     if (!name) return;
-    const filename = name.endsWith('.md') ? name : `${name}.md`;
+    const filename = core.classifiedFilename(name, kind as core.Category);
     const rel = path.relative(root, path.join(space, kind, filename)).split(path.sep).join('/');
     await open(await core.createMarkdown(root, rel));
   });

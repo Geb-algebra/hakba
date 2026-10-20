@@ -74,3 +74,26 @@ test('git dates follow renames and ignore uncommitted edits; shallow is marked',
   try {await core.git(clone,['clone','--depth=1',`file://${root}`,'.']);assert.equal((await core.dates(clone,path.join(clone,'new.md'))).shallow,true);}
   finally {await fs.rm(clone,{recursive:true,force:true});}
 }));
+test('dated classified filenames preserve subdirectories and existing dates', () => {
+  const date = new Date(2026,9,20);
+  for (const kind of ['_sources','_outputs'] as const) {
+    assert.equal(core.classifiedFilename('nested/report',kind,date),'nested/261020_report.md');
+    assert.equal(core.classifiedFilename('nested/261018_report.md',kind,date),'nested/261018_report.md');
+  }
+  for (const kind of ['_contexts','_knowledges'] as const)
+    assert.equal(core.classifiedFilename('nested/report',kind,date),'nested/report.md');
+});
+test('shared link prefixes respect directory boundaries and alias ranges', () => {
+  const root = path.resolve('/repo');
+  const origin = path.join(root,'project','_knowledges','note.md');
+  for (const [target,prefix] of [
+    ['project/_knowledges/other.md','project/_knowledges/'],
+    ['project/_sources/data.csv','project/'],
+    ['project/nested/deep/file.md','project/'],
+    ['projects/file.md',''], ['other/file.md',''], ['root.md','']
+  ]) assert.equal(target.slice(0,core.sharedLinkPrefix(root,origin,target)),prefix);
+  assert.equal(core.sharedLinkPrefix(root,path.join(root,'note.md'),'project/file.md'),0);
+  const text = '[[project/_sources/data.csv|データ]]';
+  const link = core.links(text)[0];
+  assert.equal(text.slice(link.start+2,link.start+2+core.sharedLinkPrefix(root,origin,link.target)),'project/');
+});

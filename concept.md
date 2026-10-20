@@ -150,15 +150,15 @@ knowledge-base/
 │   ├── _knowledges/
 │   │   └── business-rules.md
 │   ├── _sources/
-│   │   └── meeting-notes.md
+│   │   └── 261018_meeting-notes.md
 │   ├── system-x/                 # 「システムXを完成させる」Intent
 │   │   ├── _index.md
 │   │   ├── _sources/
-│   │   │   └── ideas.md
+│   │   │   └── 261018_ideas.md
 │   │   ├── _knowledges/
 │   │   │   └── requirements.md
 │   │   ├── _outputs/
-│   │   │   └── specification.md
+│   │   │   └── 261018_specification.md
 │   │   └── design/               # 「設計する」Intent。さらに入れ子にできる
 │   │       ├── _index.md
 │   │       ├── _knowledges/
@@ -169,7 +169,7 @@ knowledge-base/
 └── infrastructure/               # 「インフラについて情報を蓄積する」Intent
     ├── _index.md
     ├── _sources/
-    │   └── networking.md         # 単発メモも情報種別で分類する
+    │   └── 261018_networking.md         # 単発メモも情報種別で分類する
     └── linux-study/
         ├── _index.md
         └── _knowledges/
@@ -195,4 +195,9 @@ SourceおよびOutputは任意の形式で良い。
 
 **Spaceの名前は日付 `yymmdd_` で始める。**
 日付をつけておくことで、いつ頃の作業かを思い出せたり、最新の作業が下や上に溜まって扱いやすくなったりする。
-ファイルは都度更新していくので日付はつけない。
+Context・Knowledge は都度更新するため、ファイル名に日付を付けない。
+
+### Source・Output のファイル名
+
+**Source・Output は情報の重複を許容し、ファイル名を日付 `yymmdd_` で始める。**
+情報鮮度が重要なため、取得・作成時のローカル日付をファイル名に付け、異なる時点の情報や成果物を区別する。任意形式のファイルやサブディレクトリ内のファイルにも適用する。Knowledge の重複排除・最新性の原則は Source・Output には適用しない。

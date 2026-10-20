@@ -69,6 +69,23 @@ export async function nearestSpace(root: string, start: string): Promise<string>
 export function datePrefix(date = new Date()): string {
   return `${String(date.getFullYear()).slice(-2)}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}_`;
 }
+export function classifiedFilename(name: string, kind: Category, date = new Date()): string {
+  const filename = name.endsWith('.md') ? name : `${name}.md`;
+  if (kind !== '_sources' && kind !== '_outputs') return filename;
+  const basename = path.basename(filename);
+  return /^\d{6}_/.test(basename) ? filename : path.join(path.dirname(filename), datePrefix(date) + basename);
+}
+// Length of the root-relative directory prefix shared by the two files.
+export function sharedLinkPrefix(root: string, origin: string, target: string): number {
+  const originParts = path.relative(root, path.dirname(origin)).split(path.sep);
+  const targetParts = target.split('/');
+  let length = 0;
+  for (let i = 0; i < targetParts.length - 1 && i < originParts.length; i++) {
+    if (originParts[i] !== targetParts[i]) break;
+    length += targetParts[i].length + 1;
+  }
+  return length;
+}
 export function approve(text: string): string {
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
   const fm = /^(\uFEFF?)---\r?\n((?:[^\n]*\n)*?)---[ \t]*(?:\r?\n|$)/.exec(text);
