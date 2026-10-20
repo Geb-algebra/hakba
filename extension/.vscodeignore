@@ -6,3 +6,6 @@ out/**/*.map
 out/test/**
 *.vsix
 package-lock.json
+node_modules/**
+bun.lock
+bun.lockb

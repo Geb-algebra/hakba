@@ -3,7 +3,8 @@
   "displayName": "HAKBa",
   "description": "Space-based human-approved knowledge management with repository-relative wiki links.",
   "version": "0.1.0",
-  "publisher": "hakba-local",
+  "publisher": "geb-algebra",
+  "repository": "https://github.com/Geb-algebra/hakba",
   "license": "MIT",
   "engines": {
     "vscode": "^1.95.0"
@@ -30,10 +31,11 @@
   },
   "scripts": {
     "compile": "tsc -p .",
+    "bundle": "bun build ./src/extension.ts --target=node --format=cjs --external=vscode --outfile=out/src/extension.js",
     "check": "tsc -p . --noEmit",
-    "test": "npm run compile && node --test out/test/core.test.js",
-    "test:integration": "npm run compile && node test/run-integration.cjs",
-    "package": "npm run test && vsce package --allow-missing-repository"
+    "test": "bun run compile && node --test out/test/core.test.js",
+    "test:integration": "bun run compile && node test/run-integration.cjs",
+    "package": "bun run test && bun run bundle && vsce package --no-dependencies --allow-missing-repository"
   },
   "contributes": {
     "commands": [
