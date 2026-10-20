@@ -13,7 +13,7 @@ npm run check
 npm test
 npm run test:integration
 npm run package
-code --install-extension hakba-0.1.0.vsix
+code --install-extension hakba-0.1.1.vsix
 ```
 
 Linux の画面がない環境では `xvfb-run -a npm run test:integration` を使います。Integration テストは初回に VSCode をダウンロードします。既存のテスト用デスクトップ VSCode は `HAKBA_VSCODE_EXECUTABLE` で指定できます。

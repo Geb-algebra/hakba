@@ -2,7 +2,7 @@
   "name": "hakba",
   "displayName": "HAKBa",
   "description": "Space-based human-approved knowledge management with repository-relative wiki links.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "geb-algebra",
   "repository": "https://github.com/Geb-algebra/hakba",
   "license": "MIT",
