@@ -78,6 +78,24 @@ export async function ancestorSpaces(root: string, start: string): Promise<strin
   }
   return spaces.reverse();
 }
+// Include empty organization directories; do not follow symbolic links or Git metadata.
+export async function knowledgeDirectories(root: string, space: string): Promise<string[]> {
+  const base = await resolveTarget(root, path.relative(root, path.join(space, '_knowledges')).split(path.sep).join('/'));
+  const result: string[] = [];
+  async function visit(relative: string): Promise<void> {
+    let entries;
+    try {entries = await fs.readdir(path.join(base, relative), {withFileTypes:true});}
+    catch (error) {if ((error as NodeJS.ErrnoException).code === 'ENOENT') return; throw error;}
+    for (const entry of entries) {
+      if (!entry.isDirectory() || entry.name === '.git') continue;
+      const dir = relative + entry.name + '/';
+      result.push(dir);
+      await visit(dir);
+    }
+  }
+  await visit('');
+  return result.sort();
+}
 export function datePrefix(date = new Date()): string {
   return `${String(date.getFullYear()).slice(-2)}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}_`;
 }

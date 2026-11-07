@@ -120,6 +120,35 @@ export function activate(context: vscode.ExtensionContext): void {
     await core.initializeSpace(dir);
     await open(path.join(dir, '_index.md'));
   });
+  async function knowledgeName(root: string, space: string, validate: (value:string) => string | undefined): Promise<string | undefined> {
+    const directories = await core.knowledgeDirectories(root, space);
+    type NameItem = vscode.QuickPickItem & {directory?: string; filename?: string};
+    const picker = vscode.window.createQuickPick<NameItem>();
+    picker.title = 'Knowledge file name';
+    picker.placeholder = 'Enter a relative path (e.g. topic/note); .md is optional. Select a folder to complete its path.';
+    const update = () => {
+      const value = picker.value;
+      const error = validate(value);
+      picker.items = [
+        {label: error || `Create: ${value}`, description: error ? undefined : 'Create Knowledge', filename: error ? undefined : value, alwaysShow:true},
+        ...directories.filter(dir => dir.toLowerCase().startsWith(value.toLowerCase()) && dir !== value)
+          .map(dir => ({label:dir, description:'Complete directory path', directory:dir, alwaysShow:true}))
+      ];
+    };
+    return await new Promise<string | undefined>(resolve => {
+      const subscriptions = [
+        picker.onDidChangeValue(update),
+        picker.onDidAccept(() => {
+          const item = picker.selectedItems[0];
+          if (item?.directory) {picker.value = item.directory; return;}
+          if (item?.filename) {resolve(item.filename); picker.hide();}
+        }),
+        picker.onDidHide(() => {resolve(undefined); subscriptions.forEach(subscription => subscription.dispose()); picker.dispose();})
+      ];
+      update();
+      picker.show();
+    });
+  }
   command('hakba.createFile', async (uri?: vscode.Uri) => {
     const {root, selected} = await location(uri);
     let space = await core.nearestSpace(root, selected);
@@ -135,7 +164,8 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!destination) return;
       space = destination.dir;
     }
-    const name = await vscode.window.showInputBox({prompt:`File name (subdirectories allowed; .md is optional${kind === '_sources' || kind === '_outputs' ? '; yymmdd_ prefix added automatically' : ''})`, validateInput:value => !value.trim() || value.split('/').some(p => !p || p === '.' || p === '..') || /[\\:*?"<>|\x00-\x1f]/.test(value) ? 'Enter a valid relative file name.' : undefined});
+    const validateName = (value:string) => !value.trim() || value.split('/').some(p => !p || p === '.' || p === '..') || /[\\:*?"<>|\x00-\x1f]/.test(value) ? 'Enter a valid relative file name.' : undefined;
+    const name = kind === '_knowledges' ? await knowledgeName(root, space, validateName) : await vscode.window.showInputBox({prompt:`File name (subdirectories allowed; .md is optional${kind === '_sources' || kind === '_outputs' ? '; yymmdd_ prefix added automatically' : ''})`, validateInput:validateName});
     if (!name) return;
     const filename = core.classifiedFilename(name, kind as core.Category);
     const rel = path.relative(root, path.join(space, kind, filename)).split(path.sep).join('/');

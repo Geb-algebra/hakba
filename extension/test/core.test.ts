@@ -107,3 +107,19 @@ test('ancestor choices include distant Spaces, skip ordinary directories and exc
   assert.deepEqual(await core.ancestorSpaces(root,path.join(current,'_knowledges')), [root,parent,grandchild,current]);
   assert.deepEqual(await core.ancestorSpaces(root,root), [root]);
 }));
+test('Knowledge directory suggestions include empty nested folders only in the chosen Space', async () => fixture(async root => {
+  await core.initializeSpace(root);
+  const child = path.join(root, 'child');
+  await core.initializeSpace(child);
+  await fs.mkdir(path.join(root, '_knowledges', '日本語 空白', 'empty'), {recursive:true});
+  await fs.mkdir(path.join(child, '_knowledges', 'child-only'));
+  await fs.mkdir(path.join(root, '_knowledges', '.git'));
+  await fs.symlink(path.join(root, '_knowledges'), path.join(root, '_knowledges', 'loop'));
+  await fs.writeFile(path.join(root, '_knowledges', 'note.md'), '# Note');
+  assert.deepEqual(await core.knowledgeDirectories(root, root), ['日本語 空白/', '日本語 空白/empty/']);
+  assert.deepEqual(await core.knowledgeDirectories(root, child), ['child-only/']);
+  const filename = core.classifiedFilename('日本語 空白/empty/new/note', '_knowledges');
+  const file = await core.createMarkdown(root, `_knowledges/${filename}`);
+  assert.equal(await core.nearestSpace(root, file), root);
+  assert.match(await fs.readFile(file, 'utf8'), /draft: true/);
+}));
