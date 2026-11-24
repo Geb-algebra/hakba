@@ -50,6 +50,31 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.onDidChangeVisibleTextEditors(() => {void refreshLinks();}),
     vscode.workspace.onDidChangeTextDocument(() => {void refreshLinks();}),
     vscode.workspace.onDidCloseTextDocument(document => diagnostics.delete(document.uri)));
+  const draftChanges = new vscode.EventEmitter<vscode.Uri>();
+  const isMarkdownFile = (uri: vscode.Uri) => uri.scheme === 'file' && path.extname(uri.fsPath).toLowerCase() === '.md';
+  const refreshDraft = (uri: vscode.Uri) => {
+    if (isMarkdownFile(uri)) draftChanges.fire(uri);
+  };
+  context.subscriptions.push(
+    draftChanges,
+    vscode.window.registerFileDecorationProvider({
+      onDidChangeFileDecorations:draftChanges.event,
+      async provideFileDecoration(uri, token) {
+        if (!isMarkdownFile(uri)) return;
+        const document = vscode.workspace.textDocuments.find(doc => doc.uri.toString() === uri.toString());
+        const text = document?.getText() ?? await fs.readFile(uri.fsPath, 'utf8').catch(() => undefined);
+        if (token.isCancellationRequested || text === undefined || !core.isDraft(text)) return;
+        return new vscode.FileDecoration('D', 'Draft', new vscode.ThemeColor('list.warningForeground'));
+      }
+    }),
+    linkWatcher.onDidCreate(refreshDraft),
+    linkWatcher.onDidChange(refreshDraft),
+    linkWatcher.onDidDelete(refreshDraft),
+    vscode.workspace.onDidChangeTextDocument(event => {
+      if (event.contentChanges.length) refreshDraft(event.document.uri);
+    }),
+    vscode.workspace.onDidCloseTextDocument(document => refreshDraft(document.uri))
+  );
   void refreshLinks();
   const refresh = () => {dateCache.clear(); events.fire();};
   const safe = (fn: (...args:any[]) => Promise<unknown>) => async (...args:any[]) => {
@@ -57,7 +82,8 @@ export function activate(context: vscode.ExtensionContext): void {
   };
   const command = (id: string, fn: (...args:any[]) => Promise<unknown>) => context.subscriptions.push(vscode.commands.registerCommand(id, safe(fn)));
   async function location(uri?: vscode.Uri): Promise<{root:string; selected:string}> {
-    const selected = uri?.fsPath || vscode.window.activeTextEditor?.document.uri.fsPath || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const active = vscode.window.activeTextEditor?.document.uri;
+    const selected = uri?.fsPath || (active?.scheme === 'file' ? active.fsPath : undefined) || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     if (!selected) throw new Error('Open a Git repository.');
     return {root:await core.repository(selected), selected};
   }
@@ -109,67 +135,110 @@ export function activate(context: vscode.ExtensionContext): void {
     await core.initializeSpace(root);
     await open(path.join(root, '_index.md'));
   });
+  async function creationPath(root: string, selected: string, title: string, classified = false, fromExplorer = false): Promise<string | undefined> {
+    const directory = fromExplorer
+      ? await core.nearestSpace(root, selected)
+      : (await fs.stat(selected)).isDirectory() ? selected : path.dirname(selected);
+    const relative = path.relative(root, directory).split(path.sep);
+    const categoryIndex = relative.findIndex(part => core.categories.some(kind => kind === part));
+    const initial = (categoryIndex < 0 ? relative : relative.slice(0, categoryIndex)).join('/');
+    type PathItem = vscode.QuickPickItem & {directory?: string; target?: string};
+    const picker = vscode.window.createQuickPick<PathItem>();
+    picker.title = title;
+    picker.value = initial ? initial + '/' : '';
+    let revision = 0;
+    const update = async () => {
+      const current = ++revision;
+      const value = picker.value;
+      const slash = value.lastIndexOf('/');
+      const parent = value.slice(0, slash + 1);
+      const segment = value.slice(slash + 1);
+      const prefix = segment.toLowerCase();
+      const error = core.validateCreationPath(value, classified);
+      const validParent = !parent || !core.validateCreationPath(parent.slice(0, -1), classified, true);
+      const inCategory = classified && core.categories.some(kind => parent.split('/').includes(kind));
+      const choosingCategory = classified && !inCategory && prefix.startsWith('_');
+      let action: PathItem = {label: error || `Create: ${value}`, target: error ? undefined : value, alwaysShow:true};
+      picker.placeholder = inCategory ? 'Enter the file name (.md is optional)' : 'Enter a repository-relative path';
+      if (!validParent) {
+        picker.items = [action];
+        return;
+      }
+
+      if (choosingCategory) {
+        const choices = core.categories.filter(kind => kind.startsWith(prefix)).map(kind => ({
+          label:kind.slice(1, -1),
+          directory:parent + kind + '/', alwaysShow:true
+        }));
+        picker.items = choices.length ? choices : [{label:'No matching category', alwaysShow:true}];
+        picker.activeItems = choices.slice(0, 1);
+        return;
+      }
+
+      if (classified && !segment) {
+        action = inCategory
+          ? {label:'Enter the file name (.md is optional)', alwaysShow:true}
+          : {label:'Press Enter to select a category', directory:parent + '_', alwaysShow:true};
+      }
+      picker.items = [action];
+      picker.activeItems = [action];
+      try {
+        const dir = parent ? await core.resolveTarget(root, parent) : root;
+        const entries = await fs.readdir(dir, {withFileTypes:true});
+        if (revision !== current) return;
+        const folders = entries
+          .filter(entry => entry.isDirectory() && !core.validateCreationPath(entry.name) && entry.name.toLowerCase().startsWith(prefix))
+          .map(entry => parent + entry.name + '/')
+          .sort()
+          .map(directory => ({label:directory, description:'Complete directory path', directory, alwaysShow:true}));
+        if (classified && !inCategory && folders.some(folder => folder.directory === value + '/')) {
+          action = {label:'Press Enter to select a category', directory:value + '/_', alwaysShow:true};
+        }
+        picker.items = [action, ...folders];
+        picker.activeItems = [!action.directory && segment && error && folders.length ? folders[0] : action];
+      } catch { /* A new directory can be entered before it exists. */ }
+    };
+    return await new Promise<string | undefined>(resolve => {
+      const subscriptions = [
+        picker.onDidChangeValue(() => {void update();}),
+        picker.onDidAccept(() => {
+          const item = picker.selectedItems[0];
+          if (item?.directory) {
+            picker.value = item.directory;
+            return;
+          }
+          if (item?.target) {resolve(item.target); picker.hide();}
+        }),
+        picker.onDidHide(() => {
+          revision++;
+          resolve(undefined);
+          subscriptions.forEach(subscription => subscription.dispose());
+          picker.dispose();
+        })
+      ];
+      void update();
+      picker.show();
+    });
+  }
   command('hakba.createSpace', async (uri?: vscode.Uri) => {
     const {root, selected} = await location(uri);
-    const parent = await core.nearestSpace(root, selected);
-    const name = await vscode.window.showInputBox({prompt:'Space name (date prefix added automatically)', validateInput:value => !value.trim() || /[\\/:*?"<>|\x00-\x1f]/.test(value) || ['.','..'].includes(value.trim()) ? 'Enter a single directory name.' : undefined});
-    if (!name) return;
-    const relative = path.relative(root, path.join(parent, core.datePrefix()+name.trim())).split(path.sep).join('/');
-    const dir = await core.resolveTarget(root, relative);
+    const target = await creationPath(root, selected, 'Space path (date prefix added automatically)', false, Boolean(uri));
+    if (!target) return;
+    const rel = path.posix.join(path.posix.dirname(target), core.datePrefix() + path.posix.basename(target));
+    const dir = await core.resolveTarget(root, rel);
+    await fs.mkdir(path.dirname(dir), {recursive:true});
     await fs.mkdir(dir); // Exclusive: never merge a newly requested Space with an existing one.
     await core.initializeSpace(dir);
     await open(path.join(dir, '_index.md'));
   });
-  async function knowledgeName(root: string, space: string, validate: (value:string) => string | undefined): Promise<string | undefined> {
-    const directories = await core.knowledgeDirectories(root, space);
-    type NameItem = vscode.QuickPickItem & {directory?: string; filename?: string};
-    const picker = vscode.window.createQuickPick<NameItem>();
-    picker.title = 'Knowledge file name';
-    picker.placeholder = 'Enter a relative path (e.g. topic/note); .md is optional. Select a folder to complete its path.';
-    const update = () => {
-      const value = picker.value;
-      const error = validate(value);
-      picker.items = [
-        {label: error || `Create: ${value}`, description: error ? undefined : 'Create Knowledge', filename: error ? undefined : value, alwaysShow:true},
-        ...directories.filter(dir => dir.toLowerCase().startsWith(value.toLowerCase()) && dir !== value)
-          .map(dir => ({label:dir, description:'Complete directory path', directory:dir, alwaysShow:true}))
-      ];
-    };
-    return await new Promise<string | undefined>(resolve => {
-      const subscriptions = [
-        picker.onDidChangeValue(update),
-        picker.onDidAccept(() => {
-          const item = picker.selectedItems[0];
-          if (item?.directory) {picker.value = item.directory; return;}
-          if (item?.filename) {resolve(item.filename); picker.hide();}
-        }),
-        picker.onDidHide(() => {resolve(undefined); subscriptions.forEach(subscription => subscription.dispose()); picker.dispose();})
-      ];
-      update();
-      picker.show();
-    });
-  }
   command('hakba.createFile', async (uri?: vscode.Uri) => {
     const {root, selected} = await location(uri);
-    let space = await core.nearestSpace(root, selected);
-    const kind = await vscode.window.showQuickPick(core.categories, {placeHolder:'Information category'});
-    if (!kind) return;
-    if (kind === '_knowledges') {
-      const spaces = await core.ancestorSpaces(root, space);
-      const destination = await vscode.window.showQuickPick(spaces.map(dir => ({
-        label: path.relative(root, dir).split(path.sep).join('/') || '/',
-        description: dir === space ? 'Current Space' : 'Ancestor Space',
-        dir
-      })), {placeHolder:'Choose the highest ancestor Space where this Knowledge is valid and useful'});
-      if (!destination) return;
-      space = destination.dir;
-    }
-    const validateName = (value:string) => !value.trim() || value.split('/').some(p => !p || p === '.' || p === '..') || /[\\:*?"<>|\x00-\x1f]/.test(value) ? 'Enter a valid relative file name.' : undefined;
-    const name = kind === '_knowledges' ? await knowledgeName(root, space, validateName) : await vscode.window.showInputBox({prompt:`File name (subdirectories allowed; .md is optional${kind === '_sources' || kind === '_outputs' ? '; yymmdd_ prefix added automatically' : ''})`, validateInput:validateName});
-    if (!name) return;
-    const filename = core.classifiedFilename(name, kind as core.Category);
-    const rel = path.relative(root, path.join(space, kind, filename)).split(path.sep).join('/');
-    await open(await core.createMarkdown(root, rel));
+    const target = await creationPath(root, selected, 'Markdown path (e.g. project/_sources/note)', true, Boolean(uri));
+    if (!target) return;
+    const kind = core.category(root, path.join(root, target))!;
+    const filename = core.classifiedFilename(path.posix.basename(target), kind);
+    const rel = path.posix.join(path.posix.dirname(target), filename);
+    await open(await core.createMarkdown(root, rel, false));
   });
   command('hakba.approve', async (uri?: vscode.Uri) => {
     const {root, selected} = await location(uri);

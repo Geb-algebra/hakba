@@ -40,15 +40,15 @@ export async function resolveTarget(root: string, target: string): Promise<strin
 export function category(root: string, file: string): Category | undefined {
   return path.relative(root, file).split(path.sep).find(p => categories.includes(p as Category)) as Category | undefined;
 }
-export function template(file: string, kind?: Category): string {
+export function template(file: string, kind?: Category, draft = true): string {
   const title = path.basename(file, '.md');
-  return `${kind === '_knowledges' ? '---\ndraft: true\n---\n\n' : ''}# ${title}\n\n${kind === '_sources' ? '## Source\n\n- URL / Access date:\n\n## Content\n\n' : ''}`;
+  return `${kind === '_knowledges' ? `---\ndraft: ${draft}\n---\n\n` : ''}# ${title}\n\n${kind === '_sources' ? '## Source\n\n- URL / Access date:\n\n## Content\n\n' : ''}`;
 }
-export async function createMarkdown(root: string, target: string): Promise<string> {
+export async function createMarkdown(root: string, target: string, draft = true): Promise<string> {
   const file = await resolveTarget(root, target);
   if (path.extname(file).toLowerCase() !== '.md') throw new Error('Only .md files can be created.');
   await fs.mkdir(path.dirname(file), {recursive:true});
-  await fs.writeFile(file, template(file, category(root, file)), {flag:'wx'});
+  await fs.writeFile(file, template(file, category(root, file), draft), {flag:'wx'});
   return file;
 }
 export async function initializeSpace(dir: string): Promise<void> {
@@ -96,6 +96,21 @@ export async function knowledgeDirectories(root: string, space: string): Promise
   await visit('');
   return result.sort();
 }
+export function validateCreationPath(value: string, classified = false, directory = false): string | undefined {
+  if (/[\\:#*?"<>|\x00-\x1f]/.test(value) || value.split('/').some(part => !part.trim() || ['.', '..', '.git'].includes(part))) {
+    return 'Enter a repository-relative path ending with a name.';
+  }
+  const parts = value.split('/');
+  const folders = directory ? parts : parts.slice(0, -1);
+  const categoryCount = folders.filter(part => categories.some(kind => kind === part)).length;
+  if (!classified && categoryCount) return 'Choose a directory outside the category folders.';
+  if (classified && (categoryCount > 1 || (!directory && categoryCount !== 1))) {
+    return 'Include one category folder before the file name.';
+  }
+  if (!directory && categories.some(kind => kind === parts.at(-1))) {
+    return 'Enter a name after the directory path.';
+  }
+}
 export function datePrefix(date = new Date()): string {
   return `${String(date.getFullYear()).slice(-2)}${String(date.getMonth()+1).padStart(2,'0')}${String(date.getDate()).padStart(2,'0')}_`;
 }
@@ -116,9 +131,16 @@ export function sharedLinkPrefix(root: string, origin: string, target: string): 
   }
   return length;
 }
+const frontmatter = /^(\uFEFF?)---\r?\n((?:[^\n]*\n)*?)---[ \t]*(?:\r?\n|$)/;
+export function isDraft(text: string): boolean {
+  const fm = frontmatter.exec(text);
+  if (!fm) return false;
+  const metadata = parseDocument(fm[2]);
+  return !metadata.errors.length && isMap(metadata.contents) && metadata.get('draft') === true;
+}
 export function approve(text: string): string {
   const eol = text.includes('\r\n') ? '\r\n' : '\n';
-  const fm = /^(\uFEFF?)---\r?\n((?:[^\n]*\n)*?)---[ \t]*(?:\r?\n|$)/.exec(text);
+  const fm = frontmatter.exec(text);
   if (!fm) {
     if (/^\uFEFF?---(?:\r?\n|$)/.test(text)) throw new Error('Frontmatter is not closed.');
     return `---${eol}draft: false${eol}---${eol}${eol}${text}`;

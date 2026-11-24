@@ -40,6 +40,17 @@ test('safe creation, nested classification, no overwrites, no traversal or symli
   assert.equal(await core.nearestSpace(root,child),child);
   assert.equal(core.datePrefix(new Date(2026,9,18)),'261018_');
 }));
+test('classified Markdown creation can start Knowledge with draft false', async () => fixture(async root => {
+  const knowledge = await core.createMarkdown(root, '_knowledges/note.md', false);
+  assert.equal(parse((await fs.readFile(knowledge, 'utf8')).split('---')[1]).draft, false);
+  const source = await core.createMarkdown(root, '_sources/source.md', false);
+  assert.match(await fs.readFile(source, 'utf8'), /^# source/);
+}));
+test('Explorer draft status requires a YAML boolean in frontmatter', () => {
+  assert.equal(core.isDraft('\uFEFF---\r\n"draft": true # pending\r\n---\r\n# Draft'), true);
+  for (const text of ['---\ndraft: false\n---', '---\ndraft: "true"\n---', '# Note\ndraft: true', '---\ndraft: true', '---\ndraft: true\ndraft: false\n---'])
+    assert.equal(core.isDraft(text), false);
+});
 test('approval preserves metadata and body including CRLF; rejects broken YAML', () => {
   const text = '---\r\ntitle: Example\r\ndraft: true\r\ntags: [a, b]\r\n---\r\n# Body\r\n';
   const approved = core.approve(text);
@@ -74,6 +85,18 @@ test('git dates follow renames and ignore uncommitted edits; shallow is marked',
   try {await core.git(clone,['clone','--depth=1',`file://${root}`,'.']);assert.equal((await core.dates(clone,path.join(clone,'new.md'))).shallow,true);}
   finally {await fs.rm(clone,{recursive:true,force:true});}
 }));
+test('creation paths use repository-relative directories and require a category for Markdown', () => {
+  for (const value of ['note', 'project/日本語 空白/note.md'])
+    assert.equal(core.validateCreationPath(value), undefined);
+  for (const value of ['', 'project/', '/note', '../note', 'project/../note', '.git/note', 'project/_knowledges/note'])
+    assert.ok(core.validateCreationPath(value), value);
+  for (const value of ['_sources/note', 'project/_knowledges/topic/note.md'])
+    assert.equal(core.validateCreationPath(value, true), undefined);
+  for (const value of ['note', 'project/_outputs', '_sources/_knowledges/note'])
+    assert.ok(core.validateCreationPath(value, true), value);
+  assert.equal(core.validateCreationPath('project', true, true), undefined);
+  assert.equal(core.validateCreationPath('project/_sources', true, true), undefined);
+});
 test('dated classified filenames preserve subdirectories and existing dates', () => {
   const date = new Date(2026,9,20);
   for (const kind of ['_sources','_outputs'] as const) {

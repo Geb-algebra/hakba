@@ -13,7 +13,7 @@ npm run check
 npm test
 npm run test:integration
 npm run package
-code --install-extension hakba-0.1.3.vsix
+code --install-extension hakba-0.1.4.vsix
 ```
 
 Linux の画面がない環境では `xvfb-run -a npm run test:integration` を使います。Integration テストは初回に VSCode をダウンロードします。既存のテスト用デスクトップ VSCode は `HAKBA_VSCODE_EXECUTABLE` で指定できます。
@@ -27,12 +27,14 @@ Git リポジトリを開き、コマンドパレットまたは Explorer の右
 | コマンド | 操作 |
 | --- | --- |
 | HAKBa: Initialize Repository | ルートに Space の不足構造を追加。既存の情報は保持 |
-| HAKBa: Create Child Space | 選択位置を含む最も近い Space の子として `yymmdd_名前/` を作成 |
-| HAKBa: Create Classified Markdown | Space・分類を選び、Markdown を作成 |
+| HAKBa: Create Child Space | リポジトリルート相対パスを入力し、指定ディレクトリに `yymmdd_名前/` を作成 |
+| HAKBa: Create Classified Markdown | 分類を含むリポジトリルート相対パスを指定して Markdown を作成 |
 | HAKBa: Approve Current Knowledge | 内容を表示し、明示確認後に `draft: false` に変更 |
 | HAKBa: Refresh Git Dates | Git 日付のキャッシュを更新 |
 
 Explorer で対象を指定しない場合は現在のファイルを使い、それもなければ最初の workspace folder を使います。複数リポジトリを開いている場合は対象のファイルまたはフォルダを選択してください。
+
+両作成コマンドはフォルダ名の入力補完に対応します。Explorer の右クリックで実行すると、選択したファイルやフォルダを含む最も近い Space のパスが初期値になります。コマンドパレットから実行すると、開いているファイルの親フォルダまでのパスが初期値になります。分類ディレクトリ内では、その分類ディレクトリの直前までを使います。Markdown の作成では、Space までのフォルダを補完します。パスの末尾に `_` を入力するか、フォルダまで入力して Enter を押すと、分類の候補が表示されます。分類を選んだらファイル名を入力します。たとえば `project/_knowledges/topic/note` と入力すると、`project/_knowledges/topic/note.md` を作成します。
 
 ```text
 _index.md
@@ -48,9 +50,9 @@ _outputs/
   _outputs/
 ```
 
-Knowledge は Markdown とし、新規作成時は `draft: true` です。分類ディレクトリ内のサブディレクトリも同じ分類です。Source と Output は通常の VSCode 操作で任意形式のファイルを配置できます。重複を許容し、鮮度を区別するためファイル名を取得・作成時のローカル日付 `yymmdd_` で始めます。分類別作成コマンドは Source・Output のファイル名に日付を自動付与します（サブディレクトリ対応、付与済みなら維持）。Context・Knowledge のファイル名には付けません。リンクからの作成は指定パスを維持するため、日付を含めて指定してください。
+Knowledge は Markdown とし、分類別作成コマンドで作ると `draft: false`、リンクから作ると `draft: true` で始まります。Explorer では `draft: true` の Markdown に警告色と `D` バッジを表示します。分類ディレクトリ内のサブディレクトリも同じ分類です。Source と Output は通常の VSCode 操作で任意形式のファイルを配置できます。重複を許容し、鮮度を区別するためファイル名を取得・作成時のローカル日付 `yymmdd_` で始めます。分類別作成コマンドは Source・Output のファイル名に日付を自動付与します（サブディレクトリ対応、付与済みなら維持）。Context・Knowledge のファイル名には付けません。リンクからの作成は指定パスを維持するため、日付を含めて指定してください。
 
-Knowledge の新規作成先は、その内容が有効かつ有用な最も祖先側の Space です。親・祖父母・さらに上も対象とし、全体に有用ならルート、作業固有なら自身に配置します。分類別作成コマンドでは Knowledge の配置先を自身・祖先から選びます。リンクから作成する場合は、その Space のパスを指定してください。
+Knowledge の新規作成先は、その内容が有効かつ有用な最も祖先側の Space です。親・祖父母・さらに上も対象とし、全体に有用ならルート、作業固有なら自身に配置します。分類別作成コマンドでは、配置先のパスを直接入力します。リンクから作成する場合は、その Space のパスを指定してください。
 
 開いているファイルから作業 Space が分かっても、そこを保存先の前提とせず、祖先へ置くべきか常に吟味します。一般知識と個別事例が混在する場合は、ある程度の塊として一般化でき、他でも使える価値がある部分を別 Knowledge に分け、一般知識を祖先へ配置します。1行単位などの細分化は求めません。
 
